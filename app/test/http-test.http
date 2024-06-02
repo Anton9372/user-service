@@ -1,0 +1,34 @@
+### Ping
+GET http://localhost:8080/api/heartbeat
+
+### Create
+POST http://localhost:8080/api/user
+Content-Type: application/json
+
+{
+  "name" : "Joe Biden",
+  "email" : "biden@ok.ru",
+  "password" : "qwerty",
+  "repeated_password" : "qwerty"
+}
+
+### Get all
+GET http://localhost:8080/api/users
+
+### Get by uuid
+GET http://localhost:8080/api/user/uuid/4c3c8d32-5b7e-4be6-bde1-231f0eeda630
+
+### Get by email and password
+GET http://localhost:8080/api/user/email_and_password/email=biden@ok.ru/password=qwerty
+
+### Update
+PATCH http://localhost:8080/api/user/uuid/4c3c8d32-5b7e-4be6-bde1-231f0eeda630
+Content-Type: application/json
+
+{
+  "name" : "Anton 123",
+  "old_password" : "123"
+}
+
+### Delete
+DELETE http://localhost:8080/api/user/3a4541ce-d1bc-4352-ad56-437ca9873713
