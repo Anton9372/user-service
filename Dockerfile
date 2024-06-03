@@ -1,15 +1,18 @@
-FROM golang:1.16.5-alpine3.14 AS builder
+FROM golang:1.22-alpine AS builder
 
-WORKDIR /usr/local/go/src/
+WORKDIR /usr/local/src
 
-ADD app/ /usr/local/go/src/
+RUN apk --no-cache add bash git make gcc gettext musl-dev
 
-RUN go clean --modcache
-RUN go build -mod=readonly -o app cmd/main/app.go
+COPY ["app/go.mod", "app/go.sum", "./"]
+RUN go mod download
 
-FROM alpine:3.14
+COPY app ./
+RUN go build -o ./bin/app cmd/main.go
 
-COPY --from=builder /usr/local/go/src/app /
-COPY --from=builder /usr/local/go/src/config.yml /
+FROM alpine AS runner
+
+COPY --from=builder /usr/local/src/bin/app /
+COPY app/config.yml /config.yml
 
 CMD ["/app"]
