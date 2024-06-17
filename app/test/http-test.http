@@ -2,7 +2,7 @@
 GET http://localhost:8080/api/heartbeat
 
 ### Create
-POST http://localhost:8080/api/user
+POST http://localhost:8080/api/users
 Content-Type: application/json
 
 {

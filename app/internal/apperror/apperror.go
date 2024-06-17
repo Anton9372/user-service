@@ -29,6 +29,10 @@ func (e *AppError) Error() string {
 	return e.Err.Error()
 }
 
+func (e *AppError) Unwrap() error {
+	return e.Err
+}
+
 func (e *AppError) Marshal() []byte {
 	bytes, err := json.Marshal(e)
 	if err != nil {

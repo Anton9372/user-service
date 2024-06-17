@@ -55,14 +55,14 @@ func InitLogger() {
 	if err != nil || os.IsExist(err) {
 		panic("can't create log dir. logging to file is not configured")
 	} else {
-		allFile, err := os.OpenFile("logs/all.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0660)
+		logFile, err := os.OpenFile("logs/all.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0660)
 		if err != nil {
 			panic(fmt.Sprintf("[Error]: %s", err))
 		}
 
 		l.SetOutput(io.Discard)
 		l.AddHook(&writerHook{
-			Writers:   []io.Writer{allFile, os.Stdout},
+			Writers:   []io.Writer{logFile, os.Stdout},
 			LogLevels: logrus.AllLevels,
 		})
 	}
@@ -85,8 +85,10 @@ func (f *CustomFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 		file = fmt.Sprintf("- %s:%d", path.Base(entry.Caller.File), entry.Caller.Line)
 	}
 
-	formatted := fmt.Sprintf("%s \u001B[%dm%s\u001B[0m %s %s %s \n",
-		timestamp, getColorByLevel(entry.Level), level, entry.Message, funcName, file)
+	//formatted := fmt.Sprintf("%s \u001B[%dm%s\u001B[0m %s %s %s \n",
+	//	timestamp, getColorByLevel(entry.Level), level, entry.Message, funcName, file)
+	formatted := fmt.Sprintf("%s %s %s %s %s\n",
+		timestamp, level, entry.Message, funcName, file)
 	return []byte(formatted), nil
 }
 

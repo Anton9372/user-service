@@ -8,6 +8,15 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+type Repository interface {
+	Create(ctx context.Context, user User) (string, error)
+	FindAll(ctx context.Context) ([]User, error)
+	FindByUUID(ctx context.Context, uuid string) (User, error)
+	FindByEmail(ctx context.Context, email string) (User, error)
+	Update(ctx context.Context, user User) error
+	Delete(ctx context.Context, uuid string) error
+}
+
 type service struct {
 	repository Repository
 	logger     *logging.Logger
@@ -50,7 +59,6 @@ func (s service) GetAll(ctx context.Context) ([]User, error) {
 		return users, fmt.Errorf("failed to find all users: %w", err)
 	}
 	return users, nil
-
 }
 
 func (s service) GetByUUID(ctx context.Context, uuid string) (User, error) {
@@ -95,11 +103,6 @@ func (s service) Update(ctx context.Context, dto UpdateUserDTO) error {
 	if err != nil {
 		return err
 	}
-
-	//err = updatedUser.GeneratePasswordHash()
-	//if err != nil {
-	//	return fmt.Errorf("failed to update user. error %w", err)
-	//}
 
 	err = s.repository.Update(ctx, updatedUser)
 

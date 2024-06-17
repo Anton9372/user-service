@@ -74,6 +74,7 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) error {
 	w.Header().Set("Location", fmt.Sprintf("%s/%s", usersURL, userUUID))
 	w.WriteHeader(http.StatusCreated)
 
+	h.logger.Info("Create user successfully")
 	return nil
 }
 
@@ -96,6 +97,8 @@ func (h *Handler) GetAllUsers(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+
+	h.logger.Info("Get all users successfully")
 	return nil
 }
 
@@ -121,6 +124,8 @@ func (h *Handler) GetUserByUUID(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+
+	h.logger.Info("Get user by uuid successfully")
 	return nil
 }
 
@@ -149,6 +154,8 @@ func (h *Handler) GetUserByEmailAndPassword(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		return err
 	}
+
+	h.logger.Info("Get user by email and password successfully")
 	return nil
 }
 
@@ -178,6 +185,7 @@ func (h *Handler) PartiallyUpdateUser(w http.ResponseWriter, r *http.Request) er
 	}
 	w.WriteHeader(http.StatusNoContent)
 
+	h.logger.Info("Partially update user successfully")
 	return nil
 }
 
@@ -194,5 +202,6 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) error {
 	}
 	w.WriteHeader(http.StatusNoContent)
 
+	h.logger.Info("Delete user successfully")
 	return nil
 }
