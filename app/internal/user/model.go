@@ -20,34 +20,33 @@ func NewUser(dto CreateUserDTO) User {
 	}
 }
 
-func UpdatedUser(dto UpdateUserDTO) User {
-	return User{
-		UUID:     dto.UUID,
-		Name:     dto.Name,
-		Email:    dto.Email,
-		Password: dto.NewPassword,
-	}
-}
+func UpdatedUser(existing User, dto UpdateUserDTO) (*User, error) {
+	updUser := new(User)
 
-func (u *User) MergeWithDefaults(defaultUser User) error {
-	if u.UUID == "" {
-		u.UUID = defaultUser.UUID
-	}
-	if u.Name == "" {
-		u.Name = defaultUser.Name
-	}
-	if u.Email == "" {
-		u.Email = defaultUser.Email
-	}
-	if u.Password == "" {
-		u.Password = defaultUser.Password
+	updUser.UUID = dto.UUID
+
+	if dto.Name != "" {
+		updUser.Name = dto.Name
 	} else {
-		err := u.GeneratePasswordHash()
-		if err != nil {
-			return fmt.Errorf("failed to update user. error %w", err)
-		}
+		updUser.Name = existing.Name
 	}
-	return nil
+
+	if dto.Email != "" {
+		updUser.Email = dto.Email
+	} else {
+		updUser.Email = existing.Email
+	}
+
+	if dto.NewPassword != "" {
+		updUser.Password = dto.NewPassword
+		err := updUser.GeneratePasswordHash()
+		if err != nil {
+			return &User{}, fmt.Errorf("failed to create updated user: %w", err)
+		}
+	} else {
+		updUser.Password = existing.Password
+	}
+	return updUser, nil
 }
 
 func (u *User) CheckPassword(password string) error {

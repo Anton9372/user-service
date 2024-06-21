@@ -4,6 +4,7 @@ import (
 	"Users/internal/apperror"
 	"Users/pkg/logging"
 	"context"
+	"errors"
 	"fmt"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -29,7 +30,7 @@ func NewService(userRepository Repository, logger *logging.Logger) Service {
 	}
 }
 
-func (s service) Create(ctx context.Context, dto CreateUserDTO) (string, error) {
+func (s *service) Create(ctx context.Context, dto CreateUserDTO) (string, error) {
 	if dto.Password != dto.RepeatedPassword {
 		return "", apperror.BadRequestError("password does not match repeated password")
 	}
@@ -52,7 +53,7 @@ func (s service) Create(ctx context.Context, dto CreateUserDTO) (string, error) 
 	return userUUID, nil
 }
 
-func (s service) GetAll(ctx context.Context) ([]User, error) {
+func (s *service) GetAll(ctx context.Context) ([]User, error) {
 	users, err := s.repository.FindAll(ctx)
 
 	if err != nil {
@@ -61,7 +62,7 @@ func (s service) GetAll(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
-func (s service) GetByUUID(ctx context.Context, uuid string) (User, error) {
+func (s *service) GetByUUID(ctx context.Context, uuid string) (User, error) {
 	user, err := s.repository.FindByUUID(ctx, uuid)
 
 	if err != nil {
@@ -70,21 +71,24 @@ func (s service) GetByUUID(ctx context.Context, uuid string) (User, error) {
 	return user, nil
 }
 
-func (s service) GetByEmailAndPassword(ctx context.Context, email, password string) (User, error) {
-	user, err := s.repository.FindByEmail(ctx, email)
+func (s *service) GetByEmailAndPassword(ctx context.Context, dto EmailAndPasswordDTO) (User, error) {
+	user, err := s.repository.FindByEmail(ctx, dto.Email)
 
 	if err != nil {
 		return user, fmt.Errorf("failed to find user by email. error: %w", err)
 	}
 
-	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(dto.Password)); err != nil {
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			return user, apperror.BadRequestError("incorrect password")
+		}
 		return user, fmt.Errorf("failed to compare passwords. error: %w", err)
 	}
 
 	return user, nil
 }
 
-func (s service) Update(ctx context.Context, dto UpdateUserDTO) error {
+func (s *service) Update(ctx context.Context, dto UpdateUserDTO) error {
 	if dto.NewPassword != dto.RepeatedNewPassword {
 		return apperror.BadRequestError("password does not match repeated password")
 	}
@@ -95,16 +99,18 @@ func (s service) Update(ctx context.Context, dto UpdateUserDTO) error {
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(dto.OldPassword))
 	if err != nil {
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			return apperror.BadRequestError("incorrect password")
+		}
 		return apperror.BadRequestError("old password does not match current password")
 	}
 
-	updatedUser := UpdatedUser(dto)
-	err = updatedUser.MergeWithDefaults(user)
+	updatedUser, err := UpdatedUser(user, dto)
 	if err != nil {
 		return err
 	}
 
-	err = s.repository.Update(ctx, updatedUser)
+	err = s.repository.Update(ctx, *updatedUser)
 
 	if err != nil {
 		return fmt.Errorf("failed to update user. error: %w", err)
@@ -112,8 +118,13 @@ func (s service) Update(ctx context.Context, dto UpdateUserDTO) error {
 	return nil
 }
 
-func (s service) Delete(ctx context.Context, uuid string) error {
-	err := s.repository.Delete(ctx, uuid)
+func (s *service) Delete(ctx context.Context, uuid string) error {
+	_, err := s.repository.FindByUUID(ctx, uuid)
+	if err != nil {
+		return err
+	}
+
+	err = s.repository.Delete(ctx, uuid)
 
 	if err != nil {
 		return fmt.Errorf("failed to delete user. error: %w", err)

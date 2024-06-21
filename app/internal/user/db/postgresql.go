@@ -1,12 +1,16 @@
 package db
 
 import (
+	"Users/internal/apperror"
 	"Users/internal/user"
 	"Users/pkg/logging"
 	"Users/pkg/postgresql"
 	"Users/pkg/utils"
 	"context"
+	"errors"
 	"fmt"
+	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v4"
 	"time"
 )
 
@@ -24,12 +28,32 @@ func NewRepository(client postgresql.Client, logger *logging.Logger) user.Reposi
 	}
 }
 
+func handleSQLError(err error, logger *logging.Logger) error {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return apperror.ErrNotFound
+	}
+
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		newErr := fmt.Errorf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s",
+			pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState())
+		logger.Error(newErr)
+
+		if pgErr.Code == "23505" { //uniqueness violation
+			return apperror.BadRequestError("User with this email already exists")
+		}
+		return newErr
+	}
+
+	return err
+}
+
 func (r *repository) Create(ctx context.Context, user user.User) (string, error) {
 	query := `
 				INSERT INTO users
 					(name, email, password)
-				VALUES 
-				    ($1, $2, $3)
+				VALUES
+					($1, $2, $3)
 				RETURNING id;
 	`
 	r.logger.Trace(fmt.Sprintf("SQL Query: %s", utils.FormatSQLQuery(query)))
@@ -39,7 +63,7 @@ func (r *repository) Create(ctx context.Context, user user.User) (string, error)
 	defer cancel()
 	err := r.client.QueryRow(nCtx, query, user.Name, user.Email, user.Password).Scan(&userUUID)
 	if err != nil {
-		return "", utils.HandleSQLError(err, r.logger)
+		return "", handleSQLError(err, r.logger)
 	}
 
 	return userUUID, nil
@@ -47,10 +71,10 @@ func (r *repository) Create(ctx context.Context, user user.User) (string, error)
 
 func (r *repository) FindAll(ctx context.Context) ([]user.User, error) {
 	query := `
-				SELECT 
-				    id, name, email, password
-				FROM 
-				    users
+				SELECT
+					id, name, email, password
+				FROM
+					users
 	`
 	r.logger.Trace(fmt.Sprintf("SQL Query: %s", utils.FormatSQLQuery(query)))
 
@@ -58,7 +82,7 @@ func (r *repository) FindAll(ctx context.Context) ([]user.User, error) {
 	defer cancel()
 	rows, err := r.client.Query(nCtx, query)
 	if err != nil {
-		return nil, utils.HandleSQLError(err, r.logger)
+		return nil, handleSQLError(err, r.logger)
 	}
 	defer rows.Close()
 
@@ -84,7 +108,7 @@ func (r *repository) FindByUUID(ctx context.Context, uuid string) (user.User, er
 				FROM
 					users
 				WHERE
-				    id = $1
+					id = $1
 	`
 	r.logger.Trace(fmt.Sprintf("SQL Query: %s", utils.FormatSQLQuery(query)))
 
@@ -93,19 +117,19 @@ func (r *repository) FindByUUID(ctx context.Context, uuid string) (user.User, er
 	defer cancel()
 	err := r.client.QueryRow(nCtx, query, uuid).Scan(&usr.UUID, &usr.Name, &usr.Email, &usr.Password)
 	if err != nil {
-		return user.User{}, utils.HandleSQLError(err, r.logger)
+		return user.User{}, handleSQLError(err, r.logger)
 	}
 	return usr, nil
 }
 
 func (r *repository) FindByEmail(ctx context.Context, email string) (user.User, error) {
 	query := `
-        		SELECT
-            		id, name, email, password
-        		FROM
-            		users
-       			WHERE
-            		email = $1
+				SELECT
+					id, name, email, password
+				FROM
+					users
+				WHERE
+					email = $1
     `
 	r.logger.Trace(fmt.Sprintf("SQL Query: %s", utils.FormatSQLQuery(query)))
 
@@ -114,25 +138,27 @@ func (r *repository) FindByEmail(ctx context.Context, email string) (user.User, 
 	defer cancel()
 	err := r.client.QueryRow(nCtx, query, email).Scan(&usr.UUID, &usr.Name, &usr.Email, &usr.Password)
 	if err != nil {
-		return user.User{}, utils.HandleSQLError(err, r.logger)
+		return user.User{}, handleSQLError(err, r.logger)
 	}
 	return usr, nil
 }
 
 func (r *repository) Update(ctx context.Context, user user.User) error {
 	query := `
-        		UPDATE 
-        		    users
-        		SET 
-        		    name = $1, email = $2, password = $3
-        		WHERE 
-        		    id = $4
+				UPDATE
+					users
+				SET
+					name = $1, email = $2, password = $3
+				WHERE
+					id = $4
     `
 	r.logger.Trace(fmt.Sprintf("SQL Query: %s", utils.FormatSQLQuery(query)))
 
-	cmdTag, err := r.client.Exec(ctx, query, user.Name, user.Email, user.Password, user.UUID)
+	nCtx, cancel := context.WithTimeout(ctx, queryWaitTime)
+	defer cancel()
+	cmdTag, err := r.client.Exec(nCtx, query, user.Name, user.Email, user.Password, user.UUID)
 	if err != nil {
-		return utils.HandleSQLError(err, r.logger)
+		return handleSQLError(err, r.logger)
 	}
 
 	if cmdTag.RowsAffected() == 0 {
@@ -144,17 +170,19 @@ func (r *repository) Update(ctx context.Context, user user.User) error {
 
 func (r *repository) Delete(ctx context.Context, uuid string) error {
 	query := `
-        		DELETE 
-        		FROM
+				DELETE
+				FROM
 					users
-        		WHERE 
-            		id = $1
+				WHERE
+					id = $1
     `
 	r.logger.Trace(fmt.Sprintf("SQL Query: %s", utils.FormatSQLQuery(query)))
 
-	cmdTag, err := r.client.Exec(ctx, query, uuid)
+	nCtx, cancel := context.WithTimeout(ctx, queryWaitTime)
+	defer cancel()
+	cmdTag, err := r.client.Exec(nCtx, query, uuid)
 	if err != nil {
-		return utils.HandleSQLError(err, r.logger)
+		return handleSQLError(err, r.logger)
 	}
 
 	if cmdTag.RowsAffected() == 0 {

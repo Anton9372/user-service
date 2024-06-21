@@ -34,6 +34,7 @@ func main() {
 	metricHandler := metric.Handler{Logger: logger}
 	metricHandler.Register(router)
 
+	logger.Info("storage initializing")
 	postgresClient, err := postgresql.NewClient(context.Background(), 5, *cfg)
 	if err != nil {
 		logger.Fatal(err)

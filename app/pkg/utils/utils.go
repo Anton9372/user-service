@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"Users/pkg/logging"
+	"io"
 	"time"
 )
 
@@ -15,4 +17,11 @@ func DoWithAttempts(fn func() error, attempts int, delay time.Duration) error {
 		return nil
 	}
 	return err
+}
+
+func CloseBody(logger *logging.Logger, body io.ReadCloser) {
+	err := body.Close()
+	if err != nil {
+		logger.Fatalf("Error closing request body: %v", err)
+	}
 }

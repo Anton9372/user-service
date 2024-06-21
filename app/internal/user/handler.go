@@ -2,62 +2,59 @@ package user
 
 import (
 	"Users/internal/apperror"
+	h "Users/internal/handler"
 	"Users/pkg/logging"
+	"Users/pkg/utils"
 	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/julienschmidt/httprouter"
-	"io"
 	"net/http"
 )
 
 const (
-	usersURL                  = "/api/users"
-	userByIdURL               = "/api/users/uuid/:uuid"
-	userByEmailAndPasswordURL = "/api/users/login"
+	usersURL    = "/api/users"
+	userByIdURL = "/api/users/one/:uuid"
+	allUsersURL = "/api/users/all"
 )
 
 type Service interface {
 	Create(ctx context.Context, dto CreateUserDTO) (string, error)
 	GetAll(ctx context.Context) ([]User, error)
 	GetByUUID(ctx context.Context, uuid string) (User, error)
-	GetByEmailAndPassword(ctx context.Context, email, password string) (User, error)
+	GetByEmailAndPassword(ctx context.Context, dto EmailAndPasswordDTO) (User, error)
 	Update(ctx context.Context, dto UpdateUserDTO) error
 	Delete(ctx context.Context, uuid string) error
 }
 
-type Handler struct {
+type handler struct {
 	service Service
 	logger  *logging.Logger
 }
 
-func NewHandler(service Service, logger *logging.Logger) *Handler {
-	return &Handler{
+func NewHandler(service Service, logger *logging.Logger) h.Handler {
+	return &handler{
 		service: service,
 		logger:  logger,
 	}
 }
 
-func (h *Handler) Register(router *httprouter.Router) {
+func (h *handler) Register(router *httprouter.Router) {
 	router.HandlerFunc(http.MethodPost, usersURL, apperror.Middleware(h.CreateUser))
-	router.HandlerFunc(http.MethodGet, usersURL, apperror.Middleware(h.GetAllUsers))
+	router.HandlerFunc(http.MethodGet, allUsersURL, apperror.Middleware(h.GetAllUsers))
 	router.HandlerFunc(http.MethodGet, userByIdURL, apperror.Middleware(h.GetUserByUUID))
-	router.HandlerFunc(http.MethodGet, userByEmailAndPasswordURL, apperror.Middleware(h.GetUserByEmailAndPassword))
+	router.HandlerFunc(http.MethodGet, usersURL, apperror.Middleware(h.GetUserByEmailAndPassword))
 	router.HandlerFunc(http.MethodPatch, userByIdURL, apperror.Middleware(h.PartiallyUpdateUser))
 	router.HandlerFunc(http.MethodDelete, userByIdURL, apperror.Middleware(h.DeleteUser))
 }
 
-func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) error {
+func (h *handler) CreateUser(w http.ResponseWriter, r *http.Request) error {
 	h.logger.Info("Create user")
+	defer utils.CloseBody(h.logger, r.Body)
 	w.Header().Set("Content-Type", "application/json")
 
 	var createdUser CreateUserDTO
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			h.logger.Errorf("Error closing body %v", err)
-		}
-	}(r.Body)
+
 	if err := json.NewDecoder(r.Body).Decode(&createdUser); err != nil {
 		return apperror.BadRequestError("invalid JSON scheme. check swagger API")
 	}
@@ -78,8 +75,9 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *Handler) GetAllUsers(w http.ResponseWriter, r *http.Request) error {
+func (h *handler) GetAllUsers(w http.ResponseWriter, r *http.Request) error {
 	h.logger.Info("Get all users")
+	defer utils.CloseBody(h.logger, r.Body)
 	w.Header().Set("Content-Type", "application/json")
 
 	users, err := h.service.GetAll(r.Context())
@@ -102,12 +100,16 @@ func (h *Handler) GetAllUsers(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *Handler) GetUserByUUID(w http.ResponseWriter, r *http.Request) error {
+func (h *handler) GetUserByUUID(w http.ResponseWriter, r *http.Request) error {
 	h.logger.Info("Get user by uuid")
+	defer utils.CloseBody(h.logger, r.Body)
 	w.Header().Set("Content-Type", "application/json")
 
 	params := r.Context().Value(httprouter.ParamsKey).(httprouter.Params)
 	userUUID := params.ByName("uuid")
+	if userUUID == "" {
+		return apperror.BadRequestError("user uuid must not be empty")
+	}
 
 	usr, err := h.service.GetByUUID(r.Context(), userUUID)
 	if err != nil {
@@ -129,22 +131,27 @@ func (h *Handler) GetUserByUUID(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *Handler) GetUserByEmailAndPassword(w http.ResponseWriter, r *http.Request) error {
+func (h *handler) GetUserByEmailAndPassword(w http.ResponseWriter, r *http.Request) error {
 	h.logger.Info("Get user by email and password")
+	defer utils.CloseBody(h.logger, r.Body)
 	w.Header().Set("Content-Type", "application/json")
 
-	email := r.URL.Query().Get("email")
-	password := r.URL.Query().Get("password")
-	if email == "" || password == "" {
-		return apperror.BadRequestError("missing required parameters email or password")
+	var emailAndPassword EmailAndPasswordDTO
+
+	if err := json.NewDecoder(r.Body).Decode(&emailAndPassword); err != nil {
+		return apperror.BadRequestError("invalid JSON scheme. check swagger API")
 	}
 
-	usr, err := h.service.GetByEmailAndPassword(r.Context(), email, password)
+	if emailAndPassword.Email == "" || emailAndPassword.Password == "" {
+		return apperror.BadRequestError("missing required fields")
+	}
+
+	user, err := h.service.GetByEmailAndPassword(r.Context(), emailAndPassword)
 	if err != nil {
 		return err
 	}
 
-	userBytes, err := json.Marshal(usr)
+	userBytes, err := json.Marshal(user)
 	if err != nil {
 		return err
 	}
@@ -159,20 +166,19 @@ func (h *Handler) GetUserByEmailAndPassword(w http.ResponseWriter, r *http.Reque
 	return nil
 }
 
-func (h *Handler) PartiallyUpdateUser(w http.ResponseWriter, r *http.Request) error {
+func (h *handler) PartiallyUpdateUser(w http.ResponseWriter, r *http.Request) error {
 	h.logger.Info("Partially update user")
+	defer utils.CloseBody(h.logger, r.Body)
 	w.Header().Set("Content-Type", "application/json")
 
 	params := r.Context().Value(httprouter.ParamsKey).(httprouter.Params)
 	userUUID := params.ByName("uuid")
+	if userUUID == "" {
+		return apperror.BadRequestError("user uuid must not be empty")
+	}
 
 	var updatedUser UpdateUserDTO
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			h.logger.Errorf("Error closing body %v", err)
-		}
-	}(r.Body)
+
 	if err := json.NewDecoder(r.Body).Decode(&updatedUser); err != nil {
 		return apperror.BadRequestError("invalid JSON scheme. check swagger API")
 	}
@@ -189,12 +195,16 @@ func (h *Handler) PartiallyUpdateUser(w http.ResponseWriter, r *http.Request) er
 	return nil
 }
 
-func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) error {
+func (h *handler) DeleteUser(w http.ResponseWriter, r *http.Request) error {
 	h.logger.Info("Delete user")
+	defer utils.CloseBody(h.logger, r.Body)
 	w.Header().Set("Content-Type", "application/json")
 
 	params := r.Context().Value(httprouter.ParamsKey).(httprouter.Params)
 	userUUID := params.ByName("uuid")
+	if userUUID == "" {
+		return apperror.BadRequestError("user uuid must not be empty")
+	}
 
 	err := h.service.Delete(r.Context(), userUUID)
 	if err != nil {
