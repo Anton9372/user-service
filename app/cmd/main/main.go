@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "Users/docs"
 	"Users/internal/config"
 	"Users/internal/user"
 	"Users/internal/user/db"
@@ -13,6 +14,7 @@ import (
 	"fmt"
 	"github.com/julienschmidt/httprouter"
 	_ "github.com/lib/pq"
+	httpSwagger "github.com/swaggo/http-swagger"
 	"net"
 	"net/http"
 	"os"
@@ -20,6 +22,17 @@ import (
 	"time"
 )
 
+// @Title		User-service API
+// @Version		1.0
+// @Description	Service for user management
+
+// @Contact.name	Anton
+// @Contact.email	ap363402@gmail.com
+
+// @License.name Apache 2.0
+
+// @Host 		localhost:10001
+// @BasePath 	/api
 func main() {
 	logging.InitLogger()
 	logger := logging.GetLogger()
@@ -30,6 +43,10 @@ func main() {
 
 	logger.Info("router initializing")
 	router := httprouter.New()
+
+	logger.Info("swagger docs initializing")
+	router.Handler(http.MethodGet, "/swagger", http.RedirectHandler("/swagger/index.html", http.StatusMovedPermanently))
+	router.Handler(http.MethodGet, "/swagger/*any", httpSwagger.WrapHandler)
 
 	metricHandler := metric.Handler{Logger: logger}
 	metricHandler.Register(router)

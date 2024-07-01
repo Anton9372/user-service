@@ -15,8 +15,3 @@ type UpdateUserDTO struct {
 	NewPassword         string `json:"new_password,omitempty"`
 	RepeatedNewPassword string `json:"repeated_new_password,omitempty"`
 }
-
-type EmailAndPasswordDTO struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}

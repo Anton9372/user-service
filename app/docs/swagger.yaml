@@ -1,0 +1,250 @@
+basePath: /api
+definitions:
+  apperror.AppError:
+    properties:
+      code:
+        type: string
+      developer_message:
+        type: string
+      message:
+        type: string
+    type: object
+  user.CreateUserDTO:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+      repeated_password:
+        type: string
+    type: object
+  user.UpdateUserDTO:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      new_password:
+        type: string
+      old_password:
+        type: string
+      repeated_new_password:
+        type: string
+      uuid:
+        type: string
+    type: object
+  user.User:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+      uuid:
+        type: string
+    type: object
+host: localhost:10001
+info:
+  contact:
+    email: ap363402@gmail.com
+    name: Anton
+  description: Service for user management
+  license:
+    name: Apache 2.0
+  title: User-service API
+  version: "1.0"
+paths:
+  /metric:
+    get:
+      description: Checks that the server is up and running
+      responses:
+        "204":
+          description: No Content
+      summary: Heartbeat
+      tags:
+      - Heartbeat
+  /users:
+    get:
+      description: Get user by email and password
+      parameters:
+      - description: User's email
+        in: path
+        name: email
+        required: true
+        type: string
+      - description: User's password
+        in: path
+        name: password
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User
+          schema:
+            $ref: '#/definitions/user.User'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+        "418":
+          description: Something wrong with application logic
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+      summary: Get user by email and password
+      tags:
+      - User
+    post:
+      consumes:
+      - application/json
+      description: Creates new user
+      parameters:
+      - description: User's data
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/user.CreateUserDTO'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+        "418":
+          description: Something wrong with application logic
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+      summary: Create user
+      tags:
+      - User
+  /users/all:
+    get:
+      description: Get list of all users
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Users list
+          schema:
+            items:
+              $ref: '#/definitions/user.User'
+            type: array
+        "418":
+          description: Something wrong with application logic
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+      summary: Get all users
+      tags:
+      - User
+  /users/one:
+    delete:
+      description: Delete user
+      parameters:
+      - description: User's uuid
+        in: path
+        name: user_uuid
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: user not found
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+        "418":
+          description: Something wrong with application logic
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+      summary: Delete user
+      tags:
+      - User
+    get:
+      description: Get user by uuid
+      parameters:
+      - description: User's uuid
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User
+          schema:
+            $ref: '#/definitions/user.User'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+        "418":
+          description: Something wrong with application logic
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+      summary: Get user by uuid
+      tags:
+      - User
+    patch:
+      consumes:
+      - application/json
+      description: Update user
+      parameters:
+      - description: User's uuid
+        in: path
+        name: user_uuid
+        required: true
+        type: string
+      - description: User's data
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/user.UpdateUserDTO'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+        "418":
+          description: Something wrong with application logic
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/apperror.AppError'
+      summary: Update user
+      tags:
+      - User
+swagger: "2.0"

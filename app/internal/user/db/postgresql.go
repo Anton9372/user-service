@@ -41,6 +41,8 @@ func handleSQLError(err error, logger *logging.Logger) error {
 
 		if pgErr.Code == "23505" { //uniqueness violation
 			return apperror.BadRequestError("User with this email already exists")
+		} else if pgErr.Code == "22P02" { //invalid uuid syntax
+			return apperror.ErrNotFound
 		}
 		return newErr
 	}

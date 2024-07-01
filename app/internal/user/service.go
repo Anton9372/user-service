@@ -71,14 +71,14 @@ func (s *service) GetByUUID(ctx context.Context, uuid string) (User, error) {
 	return user, nil
 }
 
-func (s *service) GetByEmailAndPassword(ctx context.Context, dto EmailAndPasswordDTO) (User, error) {
-	user, err := s.repository.FindByEmail(ctx, dto.Email)
+func (s *service) GetByEmailAndPassword(ctx context.Context, email, password string) (User, error) {
+	user, err := s.repository.FindByEmail(ctx, email)
 
 	if err != nil {
 		return user, fmt.Errorf("failed to find user by email. error: %w", err)
 	}
 
-	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(dto.Password)); err != nil {
+	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
 			return user, apperror.BadRequestError("incorrect password")
 		}

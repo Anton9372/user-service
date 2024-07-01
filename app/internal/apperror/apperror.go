@@ -6,22 +6,22 @@ import (
 )
 
 var (
-	ErrNotFound = NewAppError("not found", "not found", "US-000404")
+	ErrNotFound = NewAppError("US-000404", "not found", "not found")
 )
 
 type AppError struct {
 	Err              error  `json:"-"`
+	Code             string `json:"code,omitempty"`
 	Message          string `json:"message,omitempty"`
 	DeveloperMessage string `json:"developer_message,omitempty"`
-	Code             string `json:"code,omitempty"`
 }
 
-func NewAppError(message, developerMessage, code string) *AppError {
+func NewAppError(code, message, developerMessage string) *AppError {
 	return &AppError{
 		Err:              fmt.Errorf(message),
+		Code:             code,
 		Message:          message,
 		DeveloperMessage: developerMessage,
-		Code:             code,
 	}
 }
 
@@ -42,9 +42,9 @@ func (e *AppError) Marshal() []byte {
 }
 
 func BadRequestError(message string) *AppError {
-	return NewAppError(message, "something wrong with user data", "NS-000500")
+	return NewAppError("US-000400", message, "something wrong with user data")
 }
 
 func systemError(developerMessage string) *AppError {
-	return NewAppError("internal system error", developerMessage, "US-000418")
+	return NewAppError("US-000418", "internal system error", developerMessage)
 }

@@ -3,7 +3,7 @@ listen:
   bind_ip: 0.0.0.0
   port: 10001
 postgres:
-  host: localhost
+  host: postgresql
   port: 5432
   database: users_db
   username: postgres

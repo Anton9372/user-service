@@ -8,11 +8,11 @@ COPY ["app/go.mod", "app/go.sum", "./"]
 RUN go mod download
 
 COPY app ./
-RUN go build -o ./bin/app cmd/main.go
+RUN go build -o ./bin/app cmd/main/main.go
 
 FROM alpine AS runner
 
 COPY --from=builder /usr/local/src/bin/app /
-COPY app/config.yml /config.yml
+COPY app/config/local.yml /config/local.yml
 
 CMD ["/app"]

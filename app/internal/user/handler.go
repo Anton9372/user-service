@@ -22,7 +22,7 @@ type Service interface {
 	Create(ctx context.Context, dto CreateUserDTO) (string, error)
 	GetAll(ctx context.Context) ([]User, error)
 	GetByUUID(ctx context.Context, uuid string) (User, error)
-	GetByEmailAndPassword(ctx context.Context, dto EmailAndPasswordDTO) (User, error)
+	GetByEmailAndPassword(ctx context.Context, email, password string) (User, error)
 	Update(ctx context.Context, dto UpdateUserDTO) error
 	Delete(ctx context.Context, uuid string) error
 }
@@ -48,6 +48,17 @@ func (h *handler) Register(router *httprouter.Router) {
 	router.HandlerFunc(http.MethodDelete, userByIdURL, apperror.Middleware(h.DeleteUser))
 }
 
+// CreateUser
+// @Summary 	Create user
+// @Description Creates new user
+// @Tags 		User
+// @Accept		json
+// @Param 		input	body 	 user.CreateUserDTO	true	"User's data"
+// @Success 	201
+// @Failure 	400 	{object} apperror.AppError "Validation error"
+// @Failure 	418 	{object} apperror.AppError "Something wrong with application logic"
+// @Failure 	500 	{object} apperror.AppError "Internal server error"
+// @Router /users [post]
 func (h *handler) CreateUser(w http.ResponseWriter, r *http.Request) error {
 	h.logger.Info("Create user")
 	defer utils.CloseBody(h.logger, r.Body)
@@ -75,6 +86,15 @@ func (h *handler) CreateUser(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// GetAllUsers
+// @Summary 	Get all users
+// @Description Get list of all users
+// @Tags 		User
+// @Produce 	json
+// @Success 	200		{object} []user.User "Users list"
+// @Failure 	418 	{object} apperror.AppError "Something wrong with application logic"
+// @Failure 	500 	{object} apperror.AppError "Internal server error"
+// @Router 		/users/all 		[get]
 func (h *handler) GetAllUsers(w http.ResponseWriter, r *http.Request) error {
 	h.logger.Info("Get all users")
 	defer utils.CloseBody(h.logger, r.Body)
@@ -100,6 +120,17 @@ func (h *handler) GetAllUsers(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// GetUserByUUID
+// @Summary 	Get user by uuid
+// @Description Get user by uuid
+// @Tags 		User
+// @Produce 	json
+// @Param 		uuid 	path 	 string 	true  "User's uuid"
+// @Success 	200		{object} user.User "User"
+// @Failure 	404 	{object} apperror.AppError "User not found"
+// @Failure 	418 	{object} apperror.AppError "Something wrong with application logic"
+// @Failure 	500 	{object} apperror.AppError "Internal server error"
+// @Router 		/users/one	[get]
 func (h *handler) GetUserByUUID(w http.ResponseWriter, r *http.Request) error {
 	h.logger.Info("Get user by uuid")
 	defer utils.CloseBody(h.logger, r.Body)
@@ -131,22 +162,30 @@ func (h *handler) GetUserByUUID(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// GetUserByEmailAndPassword
+// @Summary 	Get user by email and password
+// @Description Get user by email and password
+// @Tags 		User
+// @Produce 	json
+// @Param 		email 		path 	 string 	true  "User's email"
+// @Param 		password 	path 	 string 	true  "User's password"
+// @Success 	200		{object} user.User "User"
+// @Failure 	404 	{object} apperror.AppError "User not found"
+// @Failure 	418 	{object} apperror.AppError "Something wrong with application logic"
+// @Failure 	500 	{object} apperror.AppError "Internal server error"
+// @Router 		/users	[get]
 func (h *handler) GetUserByEmailAndPassword(w http.ResponseWriter, r *http.Request) error {
 	h.logger.Info("Get user by email and password")
 	defer utils.CloseBody(h.logger, r.Body)
 	w.Header().Set("Content-Type", "application/json")
 
-	var emailAndPassword EmailAndPasswordDTO
-
-	if err := json.NewDecoder(r.Body).Decode(&emailAndPassword); err != nil {
-		return apperror.BadRequestError("invalid JSON scheme. check swagger API")
+	email := r.URL.Query().Get("email")
+	password := r.URL.Query().Get("password")
+	if email == "" || password == "" {
+		return apperror.BadRequestError("missing required parameters email or password")
 	}
 
-	if emailAndPassword.Email == "" || emailAndPassword.Password == "" {
-		return apperror.BadRequestError("missing required fields")
-	}
-
-	user, err := h.service.GetByEmailAndPassword(r.Context(), emailAndPassword)
+	user, err := h.service.GetByEmailAndPassword(r.Context(), email, password)
 	if err != nil {
 		return err
 	}
@@ -166,6 +205,18 @@ func (h *handler) GetUserByEmailAndPassword(w http.ResponseWriter, r *http.Reque
 	return nil
 }
 
+// PartiallyUpdateUser
+// @Summary 	Update user
+// @Description Update user
+// @Tags 		User
+// @Accept		json
+// @Param 		user_uuid 	path 	 string 			true  "User's uuid"
+// @Param 		input 		body 	 user.UpdateUserDTO true  "User's data"
+// @Success 	204
+// @Failure 	400 	{object} apperror.AppError "Validation error"
+// @Failure 	418 	{object} apperror.AppError "Something wrong with application logic"
+// @Failure 	500 	{object} apperror.AppError "Internal server error"
+// @Router /users/one [patch]
 func (h *handler) PartiallyUpdateUser(w http.ResponseWriter, r *http.Request) error {
 	h.logger.Info("Partially update user")
 	defer utils.CloseBody(h.logger, r.Body)
@@ -195,6 +246,16 @@ func (h *handler) PartiallyUpdateUser(w http.ResponseWriter, r *http.Request) er
 	return nil
 }
 
+// DeleteUser
+// @Summary 	Delete user
+// @Description Delete user
+// @Tags 		User
+// @Param 		user_uuid 	path 	 string 			true  "User's uuid"
+// @Success 	204
+// @Failure 	404 	{object} apperror.AppError "user not found"
+// @Failure 	418 	{object} apperror.AppError "Something wrong with application logic"
+// @Failure 	500 	{object} apperror.AppError "Internal server error"
+// @Router /users/one [delete]
 func (h *handler) DeleteUser(w http.ResponseWriter, r *http.Request) error {
 	h.logger.Info("Delete user")
 	defer utils.CloseBody(h.logger, r.Body)
