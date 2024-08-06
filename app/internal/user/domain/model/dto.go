@@ -1,4 +1,4 @@
-package user
+package model
 
 type CreateUserDTO struct {
 	Name             string `json:"name"`

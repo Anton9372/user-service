@@ -1,8 +1,9 @@
-package db
+package postgres
 
 import (
 	"Users/internal/apperror"
-	"Users/internal/user"
+	"Users/internal/user/domain/model"
+	"Users/internal/user/domain/service"
 	"Users/pkg/logging"
 	"Users/pkg/postgresql"
 	"Users/pkg/utils"
@@ -21,7 +22,7 @@ type repository struct {
 	logger *logging.Logger
 }
 
-func NewRepository(client postgresql.Client, logger *logging.Logger) user.Repository {
+func NewRepository(client postgresql.Client, logger *logging.Logger) service.Repository {
 	return &repository{
 		client: client,
 		logger: logger,
@@ -50,7 +51,7 @@ func handleSQLError(err error, logger *logging.Logger) error {
 	return err
 }
 
-func (r *repository) Create(ctx context.Context, user user.User) (string, error) {
+func (r *repository) Create(ctx context.Context, user model.User) (string, error) {
 	query := `
 				INSERT INTO users
 					(name, email, password)
@@ -71,7 +72,7 @@ func (r *repository) Create(ctx context.Context, user user.User) (string, error)
 	return userUUID, nil
 }
 
-func (r *repository) FindAll(ctx context.Context) ([]user.User, error) {
+func (r *repository) FindAll(ctx context.Context) ([]model.User, error) {
 	query := `
 				SELECT
 					id, name, email, password
@@ -88,9 +89,9 @@ func (r *repository) FindAll(ctx context.Context) ([]user.User, error) {
 	}
 	defer rows.Close()
 
-	users := make([]user.User, 0)
+	users := make([]model.User, 0)
 	for rows.Next() {
-		var usr user.User
+		var usr model.User
 		err = rows.Scan(&usr.UUID, &usr.Name, &usr.Email, &usr.Password)
 		if err != nil {
 			return nil, err
@@ -103,7 +104,7 @@ func (r *repository) FindAll(ctx context.Context) ([]user.User, error) {
 	return users, nil
 }
 
-func (r *repository) FindByUUID(ctx context.Context, uuid string) (user.User, error) {
+func (r *repository) FindByUUID(ctx context.Context, uuid string) (model.User, error) {
 	query := `
 				SELECT
 					id, name, email, password
@@ -114,17 +115,17 @@ func (r *repository) FindByUUID(ctx context.Context, uuid string) (user.User, er
 	`
 	r.logger.Trace(fmt.Sprintf("SQL Query: %s", utils.FormatSQLQuery(query)))
 
-	var usr user.User
+	var usr model.User
 	nCtx, cancel := context.WithTimeout(ctx, queryWaitTime)
 	defer cancel()
 	err := r.client.QueryRow(nCtx, query, uuid).Scan(&usr.UUID, &usr.Name, &usr.Email, &usr.Password)
 	if err != nil {
-		return user.User{}, handleSQLError(err, r.logger)
+		return model.User{}, handleSQLError(err, r.logger)
 	}
 	return usr, nil
 }
 
-func (r *repository) FindByEmail(ctx context.Context, email string) (user.User, error) {
+func (r *repository) FindByEmail(ctx context.Context, email string) (model.User, error) {
 	query := `
 				SELECT
 					id, name, email, password
@@ -135,17 +136,17 @@ func (r *repository) FindByEmail(ctx context.Context, email string) (user.User, 
     `
 	r.logger.Trace(fmt.Sprintf("SQL Query: %s", utils.FormatSQLQuery(query)))
 
-	var usr user.User
+	var usr model.User
 	nCtx, cancel := context.WithTimeout(ctx, queryWaitTime)
 	defer cancel()
 	err := r.client.QueryRow(nCtx, query, email).Scan(&usr.UUID, &usr.Name, &usr.Email, &usr.Password)
 	if err != nil {
-		return user.User{}, handleSQLError(err, r.logger)
+		return model.User{}, handleSQLError(err, r.logger)
 	}
 	return usr, nil
 }
 
-func (r *repository) Update(ctx context.Context, user user.User) error {
+func (r *repository) Update(ctx context.Context, user model.User) error {
 	query := `
 				UPDATE
 					users

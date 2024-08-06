@@ -1,8 +1,9 @@
-package user
+package rest
 
 import (
 	"Users/internal/apperror"
 	h "Users/internal/handler"
+	"Users/internal/user/domain/model"
 	"Users/pkg/logging"
 	"Users/pkg/utils"
 	"context"
@@ -19,11 +20,11 @@ const (
 )
 
 type Service interface {
-	Create(ctx context.Context, dto CreateUserDTO) (string, error)
-	GetAll(ctx context.Context) ([]User, error)
-	GetByUUID(ctx context.Context, uuid string) (User, error)
-	GetByEmailAndPassword(ctx context.Context, email, password string) (User, error)
-	Update(ctx context.Context, dto UpdateUserDTO) error
+	Create(ctx context.Context, dto model.CreateUserDTO) (string, error)
+	GetAll(ctx context.Context) ([]model.User, error)
+	GetByUUID(ctx context.Context, uuid string) (model.User, error)
+	GetByEmailAndPassword(ctx context.Context, email, password string) (model.User, error)
+	Update(ctx context.Context, dto model.UpdateUserDTO) error
 	Delete(ctx context.Context, uuid string) error
 }
 
@@ -64,7 +65,7 @@ func (h *handler) CreateUser(w http.ResponseWriter, r *http.Request) error {
 	defer utils.CloseBody(h.logger, r.Body)
 	w.Header().Set("Content-Type", "application/json")
 
-	var createdUser CreateUserDTO
+	var createdUser model.CreateUserDTO
 
 	if err := json.NewDecoder(r.Body).Decode(&createdUser); err != nil {
 		return apperror.BadRequestError("invalid JSON scheme. check swagger API")
@@ -228,7 +229,7 @@ func (h *handler) PartiallyUpdateUser(w http.ResponseWriter, r *http.Request) er
 		return apperror.BadRequestError("user uuid must not be empty")
 	}
 
-	var updatedUser UpdateUserDTO
+	var updatedUser model.UpdateUserDTO
 
 	if err := json.NewDecoder(r.Body).Decode(&updatedUser); err != nil {
 		return apperror.BadRequestError("invalid JSON scheme. check swagger API")

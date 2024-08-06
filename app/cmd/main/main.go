@@ -3,8 +3,9 @@ package main
 import (
 	_ "Users/docs"
 	"Users/internal/config"
-	"Users/internal/user"
-	"Users/internal/user/db"
+	"Users/internal/user/controller/rest"
+	"Users/internal/user/domain/service"
+	"Users/internal/user/repository/postgres"
 	"Users/pkg/logging"
 	"Users/pkg/metric"
 	"Users/pkg/postgresql"
@@ -56,9 +57,9 @@ func main() {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	userStorage := db.NewRepository(postgresClient, logger)
-	userService := user.NewService(userStorage, logger)
-	usersHandler := user.NewHandler(userService, logger)
+	userStorage := postgres.NewRepository(postgresClient, logger)
+	userService := service.NewService(userStorage, logger)
+	usersHandler := rest.NewHandler(userService, logger)
 	usersHandler.Register(router)
 
 	logger.Info("start application")

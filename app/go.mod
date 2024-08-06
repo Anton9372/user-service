@@ -15,6 +15,7 @@ require (
 )
 
 require (
+	github.com/Anton9372/user-service-contracts v0.0.0-20240806183258-7bfafea8adbb // indirect
 	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect

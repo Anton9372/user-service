@@ -1,3 +1,5 @@
+github.com/Anton9372/user-service-contracts v0.0.0-20240806183258-7bfafea8adbb h1:O/GURW5GFQP5hksptb5sJK9U0qD/Dyv/LLhB58e14ks=
+github.com/Anton9372/user-service-contracts v0.0.0-20240806183258-7bfafea8adbb/go.mod h1:pjetH+UIyjWeIcKlm2+m7FMBJVdvpgx2gtwxxadcrq8=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/toml v1.2.1 h1:9F2/+DoOYIOksmaJFPw1tGFy1eDnIJXg+UHjuD8lTak=
 github.com/BurntSushi/toml v1.2.1/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=

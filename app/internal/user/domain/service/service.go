@@ -1,7 +1,9 @@
-package user
+package service
 
 import (
 	"Users/internal/apperror"
+	"Users/internal/user/controller/rest"
+	"Users/internal/user/domain/model"
 	"Users/pkg/logging"
 	"context"
 	"errors"
@@ -10,11 +12,11 @@ import (
 )
 
 type Repository interface {
-	Create(ctx context.Context, user User) (string, error)
-	FindAll(ctx context.Context) ([]User, error)
-	FindByUUID(ctx context.Context, uuid string) (User, error)
-	FindByEmail(ctx context.Context, email string) (User, error)
-	Update(ctx context.Context, user User) error
+	Create(ctx context.Context, user model.User) (string, error)
+	FindAll(ctx context.Context) ([]model.User, error)
+	FindByUUID(ctx context.Context, uuid string) (model.User, error)
+	FindByEmail(ctx context.Context, email string) (model.User, error)
+	Update(ctx context.Context, user model.User) error
 	Delete(ctx context.Context, uuid string) error
 }
 
@@ -23,19 +25,19 @@ type service struct {
 	logger     *logging.Logger
 }
 
-func NewService(userRepository Repository, logger *logging.Logger) Service {
+func NewService(userRepository Repository, logger *logging.Logger) rest.Service {
 	return &service{
 		repository: userRepository,
 		logger:     logger,
 	}
 }
 
-func (s *service) Create(ctx context.Context, dto CreateUserDTO) (string, error) {
+func (s *service) Create(ctx context.Context, dto model.CreateUserDTO) (string, error) {
 	if dto.Password != dto.RepeatedPassword {
 		return "", apperror.BadRequestError("password does not match repeated password")
 	}
 
-	user := NewUser(dto)
+	user := model.NewUser(dto)
 
 	err := user.GeneratePasswordHash()
 	if err != nil {
@@ -53,7 +55,7 @@ func (s *service) Create(ctx context.Context, dto CreateUserDTO) (string, error)
 	return userUUID, nil
 }
 
-func (s *service) GetAll(ctx context.Context) ([]User, error) {
+func (s *service) GetAll(ctx context.Context) ([]model.User, error) {
 	users, err := s.repository.FindAll(ctx)
 
 	if err != nil {
@@ -62,7 +64,7 @@ func (s *service) GetAll(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
-func (s *service) GetByUUID(ctx context.Context, uuid string) (User, error) {
+func (s *service) GetByUUID(ctx context.Context, uuid string) (model.User, error) {
 	user, err := s.repository.FindByUUID(ctx, uuid)
 
 	if err != nil {
@@ -71,7 +73,7 @@ func (s *service) GetByUUID(ctx context.Context, uuid string) (User, error) {
 	return user, nil
 }
 
-func (s *service) GetByEmailAndPassword(ctx context.Context, email, password string) (User, error) {
+func (s *service) GetByEmailAndPassword(ctx context.Context, email, password string) (model.User, error) {
 	user, err := s.repository.FindByEmail(ctx, email)
 
 	if err != nil {
@@ -88,7 +90,7 @@ func (s *service) GetByEmailAndPassword(ctx context.Context, email, password str
 	return user, nil
 }
 
-func (s *service) Update(ctx context.Context, dto UpdateUserDTO) error {
+func (s *service) Update(ctx context.Context, dto model.UpdateUserDTO) error {
 	if dto.NewPassword != dto.RepeatedNewPassword {
 		return apperror.BadRequestError("password does not match repeated password")
 	}
@@ -105,7 +107,7 @@ func (s *service) Update(ctx context.Context, dto UpdateUserDTO) error {
 		return apperror.BadRequestError("old password does not match current password")
 	}
 
-	updatedUser, err := UpdatedUser(user, dto)
+	updatedUser, err := model.UpdatedUser(user, dto)
 	if err != nil {
 		return err
 	}
