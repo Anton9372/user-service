@@ -1,6 +1,8 @@
 package model
 
 import (
+	"Users/internal/apperror"
+	"Users/internal/user/domain/dto"
 	"fmt"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -12,41 +14,38 @@ type User struct {
 	Password string `json:"password"`
 }
 
-func NewUser(dto CreateUserDTO) User {
-	return User{
+func NewCreatedUser(dto dto.CreateUserDTO) (User, error) {
+	user := User{
 		Name:     dto.Name,
 		Email:    dto.Email,
 		Password: dto.Password,
 	}
+	err := user.GeneratePasswordHash()
+	return user, err
 }
 
-func UpdatedUser(existing User, dto UpdateUserDTO) (*User, error) {
-	updUser := new(User)
-
-	updUser.UUID = dto.UUID
-
-	if dto.Name != "" {
-		updUser.Name = dto.Name
-	} else {
-		updUser.Name = existing.Name
+func NewUpdatedUser(existing User, dto dto.UpdateUserDTO) (User, error) {
+	if dto.Name != nil {
+		existing.Name = *dto.Name
 	}
 
-	if dto.Email != "" {
-		updUser.Email = dto.Email
-	} else {
-		updUser.Email = existing.Email
+	if dto.Email != nil {
+		existing.Email = *dto.Email
 	}
 
-	if dto.NewPassword != "" {
-		updUser.Password = dto.NewPassword
-		err := updUser.GeneratePasswordHash()
-		if err != nil {
-			return &User{}, fmt.Errorf("failed to create updated user: %w", err)
+	if dto.NewPassword != nil {
+		if dto.RepeatedNewPassword == nil {
+			return User{}, apperror.BadRequestError("repeated password must be provided")
 		}
-	} else {
-		updUser.Password = existing.Password
+		if *dto.NewPassword != *dto.RepeatedNewPassword {
+			return User{}, apperror.BadRequestError("passwords do not match")
+		}
+		existing.Password = *dto.NewPassword
+		if err := existing.GeneratePasswordHash(); err != nil {
+			return User{}, fmt.Errorf("failed to generate paaword hash: %w", err)
+		}
 	}
-	return updUser, nil
+	return existing, nil
 }
 
 func (u *User) CheckPassword(password string) error {

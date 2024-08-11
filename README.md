@@ -1,14 +1,19 @@
-# user-service api
+# User Service API
 
-This microservice is responsible for managing users and their personal data in [finance-manager application](https://github.com/Anton9372/finance-manager-api-service)
+The **User Service** microservice is responsible for managing users and their personal data in the [Finance Manager Application](https://github.com/Anton9372/finance-manager-api-service).
 
 ## Description
 
-The microservice provides api to manage user's data.
+This microservice accepts data through both HTTP and gRPC protocols:
 
-Detailed information about the api can be found at `http://localhost:10001/swagger`
+- **HTTP**: For detailed information about the API, visit swagger at `http://localhost:10001/swagger`
+- **gRPC**: View the gRPC contracts [here](https://github.com/Anton9372/user-service-contracts).
 
-List of technologies used:
+## Technologies Used
+
 - Golang net/http
+- gRPC
+- Protocol Buffers
 - PostgreSQL
 - Docker
+

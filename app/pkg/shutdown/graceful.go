@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"time"
 )
 
 func Graceful(signals []os.Signal, closeItems ...io.Closer) {
@@ -20,4 +21,6 @@ func Graceful(signals []os.Signal, closeItems ...io.Closer) {
 			logger.Errorf("failed to close %v: %v", closer, err)
 		}
 	}
+
+	time.Sleep(2 * time.Second)
 }

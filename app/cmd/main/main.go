@@ -1,26 +1,16 @@
 package main
 
 import (
-	_ "Users/docs"
+	"Users/internal/app"
 	"Users/internal/config"
-	"Users/internal/user/controller/rest"
-	"Users/internal/user/domain/service"
-	"Users/internal/user/repository/postgres"
 	"Users/pkg/logging"
-	"Users/pkg/metric"
-	"Users/pkg/postgresql"
 	"Users/pkg/shutdown"
 	"context"
 	"errors"
-	"fmt"
-	"github.com/julienschmidt/httprouter"
-	_ "github.com/lib/pq"
-	httpSwagger "github.com/swaggo/http-swagger"
-	"net"
+	"google.golang.org/grpc"
 	"net/http"
 	"os"
 	"syscall"
-	"time"
 )
 
 // @Title		User-service API
@@ -35,6 +25,9 @@ import (
 // @Host 		localhost:10001
 // @BasePath 	/api
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	logging.InitLogger()
 	logger := logging.GetLogger()
 	logger.Info("logger initialized")
@@ -42,59 +35,19 @@ func main() {
 	logger.Info("config initializing")
 	cfg := config.GetConfig()
 
-	logger.Info("router initializing")
-	router := httprouter.New()
-
-	logger.Info("swagger docs initializing")
-	router.Handler(http.MethodGet, "/swagger", http.RedirectHandler("/swagger/index.html", http.StatusMovedPermanently))
-	router.Handler(http.MethodGet, "/swagger/*any", httpSwagger.WrapHandler)
-
-	metricHandler := metric.Handler{Logger: logger}
-	metricHandler.Register(router)
-
-	logger.Info("storage initializing")
-	postgresClient, err := postgresql.NewClient(context.Background(), 5, *cfg)
+	a, err := app.NewApp(ctx, cfg, logger)
 	if err != nil {
-		logger.Fatal(err)
-	}
-	userStorage := postgres.NewRepository(postgresClient, logger)
-	userService := service.NewService(userStorage, logger)
-	usersHandler := rest.NewHandler(userService, logger)
-	usersHandler.Register(router)
-
-	logger.Info("start application")
-	start(router, logger, cfg)
-}
-
-func start(router http.Handler, logger *logging.Logger, cfg *config.Config) {
-	var server *http.Server
-	var listener net.Listener
-	var err error
-
-	logger.Infof("bind application to host: %s and port: %s", cfg.Listen.BindIP, cfg.Listen.Port)
-
-	listener, err = net.Listen("tcp", fmt.Sprintf("%s:%s", cfg.Listen.BindIP, cfg.Listen.Port))
-	if err != nil {
-		logger.Fatal(err)
-	}
-
-	server = &http.Server{
-		Handler:      router,
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
+		logger.Fatalf("failed to create application: %v", err)
 	}
 
 	go shutdown.Graceful([]os.Signal{syscall.SIGABRT, syscall.SIGQUIT, syscall.SIGHUP, os.Interrupt, syscall.SIGTERM},
-		server)
+		&a)
 
-	logger.Info("application initialized and started")
-
-	if err := server.Serve(listener); err != nil {
-		switch {
-		case errors.Is(err, http.ErrServerClosed):
-			logger.Warn("server shutdown")
-		default:
-			logger.Fatal(err)
-		}
+	logger.Info("start application...")
+	err = a.Run(ctx)
+	if err != nil && !errors.Is(err, http.ErrServerClosed) && !errors.Is(err, grpc.ErrServerStopped) {
+		logger.Fatalf("failed to run application: %v", err)
+		return
 	}
+	logger.Info("gracefully stopped")
 }

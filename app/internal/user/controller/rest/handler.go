@@ -3,10 +3,10 @@ package rest
 import (
 	"Users/internal/apperror"
 	h "Users/internal/handler"
-	"Users/internal/user/domain/model"
+	"Users/internal/user/controller"
+	"Users/internal/user/domain/dto"
 	"Users/pkg/logging"
 	"Users/pkg/utils"
-	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/julienschmidt/httprouter"
@@ -19,21 +19,12 @@ const (
 	allUsersURL = "/api/users/all"
 )
 
-type Service interface {
-	Create(ctx context.Context, dto model.CreateUserDTO) (string, error)
-	GetAll(ctx context.Context) ([]model.User, error)
-	GetByUUID(ctx context.Context, uuid string) (model.User, error)
-	GetByEmailAndPassword(ctx context.Context, email, password string) (model.User, error)
-	Update(ctx context.Context, dto model.UpdateUserDTO) error
-	Delete(ctx context.Context, uuid string) error
-}
-
 type handler struct {
-	service Service
+	service controller.Service
 	logger  *logging.Logger
 }
 
-func NewHandler(service Service, logger *logging.Logger) h.Handler {
+func NewHandler(service controller.Service, logger *logging.Logger) h.Handler {
 	return &handler{
 		service: service,
 		logger:  logger,
@@ -65,15 +56,15 @@ func (h *handler) CreateUser(w http.ResponseWriter, r *http.Request) error {
 	defer utils.CloseBody(h.logger, r.Body)
 	w.Header().Set("Content-Type", "application/json")
 
-	var createdUser model.CreateUserDTO
+	var createdUser dto.CreateUserDTO
 
 	if err := json.NewDecoder(r.Body).Decode(&createdUser); err != nil {
 		return apperror.BadRequestError("invalid JSON scheme. check swagger API")
 	}
 
-	if createdUser.Name == "" || createdUser.Email == "" || createdUser.Password == "" ||
-		createdUser.RepeatedPassword == "" {
-		return apperror.BadRequestError("missing required fields")
+	errEmpty := createdUser.ValidateEmptyFields()
+	if errEmpty != nil {
+		return apperror.BadRequestError(errEmpty.Error())
 	}
 
 	userUUID, err := h.service.Create(r.Context(), createdUser)
@@ -143,12 +134,12 @@ func (h *handler) GetUserByUUID(w http.ResponseWriter, r *http.Request) error {
 		return apperror.BadRequestError("user uuid must not be empty")
 	}
 
-	usr, err := h.service.GetByUUID(r.Context(), userUUID)
+	user, err := h.service.GetByUUID(r.Context(), userUUID)
 	if err != nil {
 		return err
 	}
 
-	userBytes, err := json.Marshal(usr)
+	userBytes, err := json.Marshal(user)
 	if err != nil {
 		return fmt.Errorf("failed to marshall user. error: %w", err)
 	}
@@ -182,8 +173,11 @@ func (h *handler) GetUserByEmailAndPassword(w http.ResponseWriter, r *http.Reque
 
 	email := r.URL.Query().Get("email")
 	password := r.URL.Query().Get("password")
-	if email == "" || password == "" {
-		return apperror.BadRequestError("missing required parameters email or password")
+	if email == "" {
+		return apperror.BadRequestError("email must not be empty")
+	}
+	if password == "" {
+		return apperror.BadRequestError("password must not be empty")
 	}
 
 	user, err := h.service.GetByEmailAndPassword(r.Context(), email, password)
@@ -225,17 +219,17 @@ func (h *handler) PartiallyUpdateUser(w http.ResponseWriter, r *http.Request) er
 
 	params := r.Context().Value(httprouter.ParamsKey).(httprouter.Params)
 	userUUID := params.ByName("uuid")
-	if userUUID == "" {
-		return apperror.BadRequestError("user uuid must not be empty")
-	}
 
-	var updatedUser model.UpdateUserDTO
-
+	var updatedUser dto.UpdateUserDTO
 	if err := json.NewDecoder(r.Body).Decode(&updatedUser); err != nil {
 		return apperror.BadRequestError("invalid JSON scheme. check swagger API")
 	}
 
 	updatedUser.UUID = userUUID
+
+	if err := updatedUser.ValidateEmptyFields(); err != nil {
+		return apperror.BadRequestError(err.Error())
+	}
 
 	err := h.service.Update(r.Context(), updatedUser)
 	if err != nil {

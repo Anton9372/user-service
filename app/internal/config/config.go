@@ -7,11 +7,6 @@ import (
 )
 
 type Config struct {
-	Listen struct {
-		Type   string `yaml:"type" env-default:"port"`
-		BindIP string `yaml:"bind_ip" env-default:"localhost"`
-		Port   string `yaml:"port" env-default:"8080"`
-	}
 	Postgres struct {
 		Host     string `yaml:"host" env-required:"true"`
 		Port     string `yaml:"port" env-required:"true"`
@@ -19,6 +14,23 @@ type Config struct {
 		Username string `yaml:"username"`
 		Password string `yaml:"password"`
 	} `yaml:"postgres" env-required:"true"`
+
+	GRPC struct {
+		IP   string `yaml:"ip"`
+		Port int    `yaml:"port"`
+	} `yaml:"grpc"`
+
+	HTTP struct {
+		IP   string `yaml:"ip"`
+		Port int    `yaml:"port"`
+		CORS struct {
+			AllowedMethods   []string `yaml:"allowed_methods"`
+			AllowedOrigins   []string `yaml:"allowed_origins"`
+			AllowCredentials bool     `yaml:"allow_credentials"`
+			AllowedHeaders   []string `yaml:"allowed_headers"`
+			ExposedHeaders   []string `yaml:"exposed_headers"`
+		} `yaml:"cors"`
+	} `yaml:"http"`
 }
 
 var instance *Config
